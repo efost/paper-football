@@ -19,9 +19,38 @@ const coinOverlay = document.getElementById("coin-overlay");
 const rulesOverlay = document.getElementById("rules-overlay");
 const endOverlay = document.getElementById("end-overlay");
 const coin = document.getElementById("coin");
+const coinEdge = document.getElementById("coin-edge");
+const coinStage = coin.closest(".coin-stage");
 const coinResult = document.getElementById("coin-result");
+
+const coinSlices = 16;
+for (let i = 0; i < coinSlices; i++) {
+  const slice = document.createElement("span");
+  const z = -7 + (i * 14) / (coinSlices - 1);
+  slice.style.transform = `translateZ(${z}px)`;
+  slice.style.background = i % 2 ? "#c9a43a" : "#8a6d1e";
+  coinEdge.appendChild(slice);
+}
 const soundBtn = document.getElementById("sound-btn");
+const rulesBtn = document.getElementById("rules-btn");
 const menuBtn = document.getElementById("menu-btn");
+const soundRadios = document.querySelectorAll('#setup-form input[name="sound"]');
+
+function setSetupChrome(isSetup) {
+  menuBtn.hidden = isSetup;
+  rulesBtn.hidden = isSetup;
+  soundBtn.hidden = isSetup;
+  scoreboard.hidden = isSetup;
+}
+
+function setSoundEnabled(on) {
+  game.audio.setEnabled(on);
+  soundBtn.setAttribute("aria-pressed", String(on));
+  soundBtn.textContent = on ? "Sound on" : "Sound off";
+  soundRadios.forEach((radio) => {
+    radio.checked = radio.value === (on ? "on" : "off");
+  });
+}
 
 function formatClock(sec) {
   const s = Math.ceil(sec);
@@ -37,13 +66,13 @@ const ui = {
     coinOverlay.hidden = false;
     coinResult.textContent = "";
     coin.classList.remove("is-flipping-heads", "is-flipping-tails");
+    coinStage.classList.remove("is-tossing");
     coin.style.transform = "";
     coin.dataset.busy = "";
     document.querySelectorAll("[data-call]").forEach((b) => {
       b.disabled = false;
     });
-    scoreboard.hidden = false;
-    menuBtn.hidden = false;
+    setSetupChrome(false);
   },
   call(text) {
     playCall.hidden = !text;
@@ -68,8 +97,7 @@ const ui = {
     periodEl.textContent = game.downLabel();
     homeSide.classList.toggle("has-ball", game.possession === 0);
     awaySide.classList.toggle("has-ball", game.possession === 1);
-    menuBtn.hidden = game.phase === "menu";
-    scoreboard.hidden = game.phase === "menu";
+    setSetupChrome(game.phase === "menu");
 
     const humanAim = game.phase === "aim" && game.isHumanTurn();
     const humanKick = game.phase === "kickaim" && game.isHumanTurn();
@@ -103,6 +131,7 @@ globalThis.paperGame = game;
 document.getElementById("setup-form").addEventListener("submit", (e) => {
   e.preventDefault();
   const data = new FormData(e.target);
+  setSoundEnabled(data.get("sound") === "on");
   game.startMatch(data.get("mode"), data.get("length"));
 });
 
@@ -120,8 +149,10 @@ document.querySelectorAll("[data-call]").forEach((btn) => {
 
     const { face, won } = game.resolveCoin(btn.dataset.call);
     coin.classList.remove("is-flipping-heads", "is-flipping-tails");
+    coinStage.classList.remove("is-tossing");
     void coin.offsetWidth;
     coin.classList.add(face === "tails" ? "is-flipping-tails" : "is-flipping-heads");
+    coinStage.classList.add("is-tossing");
 
     window.setTimeout(() => {
       coinResult.textContent = `${face.toUpperCase()}. ${won ? "You receive." : `${game.names().away} receives.`}`;
@@ -145,8 +176,7 @@ document.getElementById("rules-close").addEventListener("click", () => {
 document.getElementById("rematch-btn").addEventListener("click", () => {
   endOverlay.hidden = true;
   menuOverlay.hidden = false;
-  scoreboard.hidden = true;
-  menuBtn.hidden = true;
+  setSetupChrome(true);
   game.resetMenu();
 });
 menuBtn.addEventListener("click", () => {
@@ -154,17 +184,18 @@ menuBtn.addEventListener("click", () => {
   coinOverlay.hidden = true;
   endOverlay.hidden = true;
   game.resetMenu();
-  scoreboard.hidden = true;
-  menuBtn.hidden = true;
+  setSetupChrome(true);
   ui.call("");
   ui.setFg(false);
 });
 
 soundBtn.addEventListener("click", () => {
-  const on = soundBtn.getAttribute("aria-pressed") === "true";
-  soundBtn.setAttribute("aria-pressed", String(!on));
-  soundBtn.textContent = on ? "Sound off" : "Sound on";
-  game.audio.setEnabled(!on);
+  setSoundEnabled(soundBtn.getAttribute("aria-pressed") !== "true");
+});
+soundRadios.forEach((radio) => {
+  radio.addEventListener("change", () => {
+    if (radio.checked) setSoundEnabled(radio.value === "on");
+  });
 });
 
 fgBtn.addEventListener("click", () => game.tryFieldGoal());

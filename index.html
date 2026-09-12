@@ -11,7 +11,7 @@
       href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow+Condensed:wght@400;600;700&family=Share+Tech+Mono&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="css/styles.css?v=logo11" />
+    <link rel="stylesheet" href="css/styles.css?v=coin7" />
     <link
       rel="icon"
       href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect fill='%23c9a66b' width='32' height='32'/%3E%3Cpath fill='%23f4efe4' stroke='%231c2740' d='M16 5 L27 26 H5 Z'/%3E%3C/svg%3E"
@@ -78,8 +78,8 @@
           </div>
         </div>
         <div class="top-actions">
-          <button type="button" class="text-btn" id="rules-btn">Rules</button>
-          <button type="button" class="text-btn" id="sound-btn" aria-pressed="true">Sound on</button>
+          <button type="button" class="text-btn" id="rules-btn" hidden>Rules</button>
+          <button type="button" class="text-btn" id="sound-btn" hidden aria-pressed="true">Sound on</button>
           <button type="button" class="text-btn" id="menu-btn" hidden>Menu</button>
         </div>
       </header>
@@ -96,8 +96,8 @@
 
     <div class="overlay" id="menu-overlay">
       <div class="panel menu-panel">
-        <p class="eyebrow">Friday night · Formica table</p>
-        <h2>Paper Football</h2>
+        <p class="eyebrow">Paper football</p>
+        <h2>New Game</h2>
         <p class="lede">
           Flick the triangle down the table. Hang it on the far edge for a touchdown.
           Kick through finger goalposts for the extra point.
@@ -114,6 +114,11 @@
             <label><input type="radio" name="length" value="21" checked /> First to 21</label>
             <label><input type="radio" name="length" value="timed" /> 5-minute clock</label>
           </fieldset>
+          <fieldset>
+            <legend>Sound</legend>
+            <label><input type="radio" name="sound" value="on" checked /> On</label>
+            <label><input type="radio" name="sound" value="off" /> Off</label>
+          </fieldset>
           <button type="submit" class="primary-btn">Coin toss</button>
         </form>
         <p class="menu-rules">
@@ -127,9 +132,15 @@
       <div class="panel coin-panel">
         <p class="eyebrow">Opening possession</p>
         <h2>Call it in the air</h2>
-        <div class="coin" id="coin" aria-hidden="true">
-          <div class="coin-face heads">H</div>
-          <div class="coin-face tails">T</div>
+        <div class="coin-stage">
+          <div class="coin-toss">
+            <div class="coin" id="coin" aria-hidden="true">
+              <div class="coin-edge" id="coin-edge"></div>
+              <div class="coin-face heads"><span>H</span></div>
+              <div class="coin-face tails"><span>T</span></div>
+            </div>
+          </div>
+          <div class="coin-shadow"></div>
         </div>
         <div class="coin-actions">
           <button type="button" class="primary-btn" data-call="heads">Heads</button>
@@ -183,6 +194,6 @@
       </div>
     </div>
 
-    <script type="module" src="js/main.js?v=logo5"></script>
+    <script type="module" src="js/main.js?v=coin7"></script>
   </body>
 </html>
