@@ -23,9 +23,11 @@ import {
   drawKickScene,
   drawKickAim,
   drawIdleKickBall,
-} from "./render.js?v=fx1";
+} from "./render.js?v=fx19";
 
 const ANNOUNCE_MS = 1100;
+const VIEW_W = 1100;
+const VIEW_H = 620;
 
 export class Game {
   constructor(canvas, ui) {
@@ -103,6 +105,8 @@ export class Game {
       this.ball.falling = false;
       this.ball.z = 0;
     }
+    this.fx.trails = [];
+    this.fx.burst = null;
   }
 
   attackSide() {
@@ -141,13 +145,22 @@ export class Game {
     return `${nth} down`;
   }
 
+  syncHiDpi() {
+    const dpr = Math.max(1, window.devicePixelRatio || 1);
+    const bw = Math.round(VIEW_W * dpr);
+    const bh = Math.round(VIEW_H * dpr);
+    if (this.canvas.width !== bw || this.canvas.height !== bh) {
+      this.canvas.width = bw;
+      this.canvas.height = bh;
+    }
+    this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
   pointerFromEvent(e) {
     const r = this.canvas.getBoundingClientRect();
-    const sx = this.canvas.width / r.width;
-    const sy = this.canvas.height / r.height;
     return {
-      x: (e.clientX - r.left) * sx,
-      y: (e.clientY - r.top) * sy,
+      x: (e.clientX - r.left) * (VIEW_W / r.width),
+      y: (e.clientY - r.top) * (VIEW_H / r.height),
     };
   }
 
@@ -427,15 +440,16 @@ export class Game {
   }
 
   draw() {
-    const { ctx, canvas } = this;
-    const W = canvas.width;
-    const H = canvas.height;
+    this.syncHiDpi();
+    const { ctx } = this;
+    const W = VIEW_W;
+    const H = VIEW_H;
     ctx.clearRect(0, 0, W, H);
 
     if (this.phase === "kickaim" || this.phase === "kickfly" || this.phase === "kickdone") {
       if (this.phase === "kickaim") {
         drawKickScene(ctx, W, H, { kx: 0, ky: 0, kz: 8, krot: 0 }, this.kickDistance, false);
-        this.kickOrigin = drawIdleKickBall(ctx, W, H);
+        this.kickOrigin = drawIdleKickBall(ctx, W, H, this.kickDistance);
         if (this.charging) drawKickAim(ctx, W, H, this.pointer, this.kickOrigin);
       } else {
         drawKickScene(ctx, W, H, this.kick, this.kickDistance);
@@ -455,7 +469,9 @@ export class Game {
       this.fx.burst.age += dt;
       if (this.fx.burst.age > 0.28) this.fx.burst = null;
     }
-    if (this.phase === "slide") {
+    if (this.ball.falling) {
+      this.fx.trails = [];
+    } else if (this.phase === "slide") {
       const speed = Math.hypot(this.ball.vx, this.ball.vy);
       if (speed > 80) {
         this.fx.trails.push({ x: this.ball.x, y: this.ball.y, rot: this.ball.rot, life: 1 });

@@ -1,4 +1,4 @@
-import { Game } from "./game.js?v=fx1";
+import { Game } from "./game.js?v=fx19";
 
 const canvas = document.getElementById("game");
 const hint = document.getElementById("hint");
@@ -43,6 +43,18 @@ function setSetupChrome(isSetup) {
   scoreboard.hidden = isSetup;
 }
 
+function showSetup() {
+  coinOverlay.hidden = true;
+  rulesOverlay.hidden = true;
+  endOverlay.hidden = true;
+  playCall.hidden = true;
+  fgBtn.hidden = true;
+  hint.textContent = "";
+  menuOverlay.hidden = false;
+  game.resetMenu();
+  setSetupChrome(true);
+}
+
 function setSoundEnabled(on) {
   game.audio.setEnabled(on);
   soundBtn.setAttribute("aria-pressed", String(on));
@@ -85,8 +97,8 @@ const ui = {
     const names = game.names();
     homeName.textContent = names.home;
     awayName.textContent = names.away;
-    homeScore.textContent = String(game.scores[0]);
-    awayScore.textContent = String(game.scores[1]);
+    homeScore.textContent = String(game.scores[0]).padStart(2, "0");
+    awayScore.textContent = String(game.scores[1]).padStart(2, "0");
     if (game.length === "timed") {
       metaLabel.textContent = "Clock";
       clockEl.textContent = formatClock(game.clock);
@@ -173,21 +185,8 @@ document.getElementById("menu-rules-btn").addEventListener("click", openRules);
 document.getElementById("rules-close").addEventListener("click", () => {
   rulesOverlay.hidden = true;
 });
-document.getElementById("rematch-btn").addEventListener("click", () => {
-  endOverlay.hidden = true;
-  menuOverlay.hidden = false;
-  setSetupChrome(true);
-  game.resetMenu();
-});
-menuBtn.addEventListener("click", () => {
-  menuOverlay.hidden = false;
-  coinOverlay.hidden = true;
-  endOverlay.hidden = true;
-  game.resetMenu();
-  setSetupChrome(true);
-  ui.call("");
-  ui.setFg(false);
-});
+document.getElementById("rematch-btn").addEventListener("click", showSetup);
+menuBtn.addEventListener("click", showSetup);
 
 soundBtn.addEventListener("click", () => {
   setSoundEnabled(soundBtn.getAttribute("aria-pressed") !== "true");
@@ -212,7 +211,7 @@ let last = performance.now();
 function frame(now) {
   const dt = Math.min(0.033, (now - last) / 1000);
   last = now;
-  if (game.phase !== "menu" && game.phase !== "coin") game.update(dt, now);
+  if (game.phase !== "menu" && game.phase !== "coin" && game.phase !== "gameover") game.update(dt, now);
   game.draw();
   requestAnimationFrame(frame);
 }

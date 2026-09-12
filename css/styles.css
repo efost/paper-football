@@ -170,9 +170,11 @@ body {
 
 .score-num {
   display: block;
-  font-family: "Share Tech Mono", ui-monospace, monospace;
+  font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
+  font-weight: 700;
   font-size: 40px;
   line-height: 0.95;
+  letter-spacing: 0.04em;
   color: var(--led);
 }
 
@@ -185,7 +187,6 @@ body {
   min-width: 148px;
   padding: 8px 12px;
   background: #050605;
-  font-family: "Share Tech Mono", ui-monospace, monospace;
 }
 
 .score-meta .meta-label {
@@ -193,7 +194,10 @@ body {
 }
 
 #clock {
+  font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
+  font-weight: 700;
   font-size: 22px;
+  letter-spacing: 0.06em;
   color: var(--led);
   line-height: 1;
 }
@@ -671,9 +675,11 @@ input[type="radio"]:focus-visible {
 }
 
 #end-score {
-  font-family: "Share Tech Mono", ui-monospace, monospace;
+  font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
+  font-weight: 700;
   color: var(--led);
   font-size: 22px;
+  letter-spacing: 0.06em;
 }
 
 .coin-actions .primary-btn:disabled {

@@ -58,12 +58,21 @@ function yardMarks(ctx) {
   ctx.restore();
 }
 
-function drawChevron(ctx, x, y, dir, size) {
+function drawArrow(ctx, x, y, dir, size) {
+  const halfH = size * 0.48;
+  const head = size * 0.72;
+  const shaft = size * 0.55;
+  const halfShaft = size * 0.18;
   ctx.beginPath();
-  ctx.moveTo(x - dir * size * 0.45, y - size * 0.5);
-  ctx.lineTo(x + dir * size * 0.55, y);
-  ctx.lineTo(x - dir * size * 0.45, y + size * 0.5);
-  ctx.stroke();
+  ctx.moveTo(x + dir * head, y);
+  ctx.lineTo(x, y - halfH);
+  ctx.lineTo(x, y - halfShaft);
+  ctx.lineTo(x - dir * shaft, y - halfShaft);
+  ctx.lineTo(x - dir * shaft, y + halfShaft);
+  ctx.lineTo(x, y + halfShaft);
+  ctx.lineTo(x, y + halfH);
+  ctx.closePath();
+  ctx.fill();
 }
 
 export function drawPlayDirection(ctx, attackSide) {
@@ -90,12 +99,9 @@ export function drawPlayDirection(ctx, attackSide) {
   const cy = TABLE.y + TABLE.h + 26;
   const cx = TABLE.x + TABLE.w / 2;
   ctx.save();
-  ctx.strokeStyle = "#e4c04a";
-  ctx.lineWidth = 3.2;
-  ctx.lineCap = "round";
-  ctx.lineJoin = "round";
+  ctx.fillStyle = "#e4c04a";
   for (let i = -1; i <= 1; i++) {
-    drawChevron(ctx, cx + i * 26 * dir, cy, dir, 13);
+    drawArrow(ctx, cx + i * 32 * dir, cy, dir, 18);
   }
   ctx.restore();
 }
@@ -166,6 +172,7 @@ export function drawFlickFx(ctx, fx, ball) {
     ctx.restore();
   }
 
+  if (ball.falling || ball.z > 8) return;
   const speed = Math.hypot(ball.vx, ball.vy);
   if (speed < 90) return;
   const ang = Math.atan2(ball.vy, ball.vx);
@@ -259,65 +266,161 @@ export function drawAim(ctx, ball, pointer, charging) {
   ctx.restore();
 }
 
-function projectKick(W, H, distance, x, y, z) {
-  const nearY = H - 70;
-  const farY = 150;
-  const t = Math.min(1.15, y / distance);
-  const persp = 1 - Math.min(1, t) * 0.46;
+function kickCamera(W, H) {
+  const L = 500;
   return {
-    sx: W / 2 + x * persp,
-    sy: nearY - Math.min(1, t) * (nearY - farY) - z * persp * 1.15,
-    persp,
-    groundY: nearY - Math.min(1, t) * (nearY - farY),
+    W,
+    H,
+    L,
+    halfW: 175,
+    thick: 20,
+    radius: 14,
+    camY: -0.25 * L,
+    camZ: 0.35 * L,
+    lookY: 0.25 * L,
+    focal: 560,
   };
 }
 
-function kickTablePath(ctx, W, H) {
-  const nearL = 72;
-  const nearR = W - 72;
-  const nearY = H - 70;
-  const farY = 150;
-  const farL = W * 0.36;
-  const farR = W * 0.64;
-  const nr = 26;
-  const fr = 10;
-  ctx.beginPath();
-  ctx.moveTo(nearL + nr, nearY);
-  ctx.arcTo(nearR, nearY, farR, farY, nr);
-  ctx.arcTo(farR, farY, farL, farY, fr);
-  ctx.arcTo(farL, farY, nearL, nearY, fr);
-  ctx.arcTo(nearL, nearY, nearR, nearY, nr);
-  ctx.closePath();
-  return { nearL, nearR, nearY, farY, farL, farR };
+function projectWorld(cam, x, y, z) {
+  const vy = y - cam.camY;
+  const vz = z - cam.camZ;
+  const lookVy = cam.lookY - cam.camY;
+  const lookVz = -cam.camZ;
+  const len = Math.hypot(lookVy, lookVz);
+  const fy = lookVy / len;
+  const fz = lookVz / len;
+  const depth = Math.max(60, vy * fy + vz * fz);
+  const up = vy * -fz + vz * fy;
+  const scale = cam.focal / depth;
+  return {
+    sx: cam.W / 2 + x * scale,
+    sy: cam.H * 0.51 - up * scale,
+    depth,
+    scale,
+  };
+}
+
+function projectKick(W, H, distance, x, y, z) {
+  const cam = kickCamera(W, H);
+  const yVis = (y / Math.max(1, distance)) * cam.L;
+  const zVis = z * 0.62;
+  const p = projectWorld(cam, x, yVis, zVis);
+  const ground = projectWorld(cam, x, yVis, 0);
+  const near = projectWorld(cam, 0, 0, 8);
+  return {
+    sx: p.sx,
+    sy: p.sy,
+    persp: p.scale / near.scale,
+    groundY: ground.sy,
+  };
+}
+
+function roundedRectRing(halfW, length, r, segs = 16) {
+  const rad = Math.min(r, halfW - 2, length / 2 - 2);
+  const pts = [];
+  const corners = [
+    { cx: -halfW + rad, cy: rad, a0: Math.PI, a1: Math.PI * 1.5 },
+    { cx: halfW - rad, cy: rad, a0: Math.PI * 1.5, a1: Math.PI * 2 },
+    { cx: halfW - rad, cy: length - rad, a0: 0, a1: Math.PI * 0.5 },
+    { cx: -halfW + rad, cy: length - rad, a0: Math.PI * 0.5, a1: Math.PI },
+  ];
+  for (const c of corners) {
+    for (let i = 0; i < segs; i++) {
+      const a = c.a0 + (c.a1 - c.a0) * (i / segs);
+      pts.push({ x: c.cx + Math.cos(a) * rad, y: c.cy + Math.sin(a) * rad });
+    }
+  }
+  return pts;
+}
+
+function sideFill(ax, ay, bx, by) {
+  const ex = bx - ax;
+  const ey = by - ay;
+  const nlen = Math.hypot(ey, -ex) || 1;
+  const ox = ey / nlen;
+  const oy = -ex / nlen;
+  const lit = Math.max(0, ox * 0.18 + oy * -0.72 + 0.32);
+  const t = 0.22 + 0.78 * lit;
+  const r = Math.round(90 + 110 * t);
+  const g = Math.round(68 + 88 * t);
+  const b = Math.round(28 + 42 * t);
+  return `rgb(${r}, ${g}, ${b})`;
 }
 
 function drawKickTable(ctx, W, H) {
   ctx.clearRect(0, 0, W, H);
+  const cam = kickCamera(W, H);
+  const ring = roundedRectRing(cam.halfW, cam.L, cam.radius);
+  const top = ring.map((p) => projectWorld(cam, p.x, p.y, 0));
+  const bot = ring.map((p) => projectWorld(cam, p.x, p.y, -cam.thick));
+  const n = ring.length;
+
+  const walls = [];
+  for (let i = 0; i < n; i++) {
+    const j = (i + 1) % n;
+    walls.push({
+      i,
+      j,
+      depth: (top[i].depth + top[j].depth + bot[i].depth + bot[j].depth) / 4,
+    });
+  }
+  walls.sort((a, b) => b.depth - a.depth);
 
   ctx.save();
-  ctx.shadowColor = "rgba(0, 0, 0, 0.28)";
+  ctx.shadowColor = "rgba(0, 0, 0, 0.32)";
   ctx.shadowBlur = 22;
-  ctx.shadowOffsetY = 10;
-  const t = kickTablePath(ctx, W, H);
-  ctx.fillStyle = "#ead9b6";
+  ctx.shadowOffsetY = 14;
+  ctx.beginPath();
+  ctx.moveTo(bot[0].sx, bot[0].sy);
+  for (let i = 1; i < n; i++) ctx.lineTo(bot[i].sx, bot[i].sy);
+  ctx.closePath();
+  ctx.fillStyle = "#5a421c";
   ctx.fill();
   ctx.restore();
 
-  kickTablePath(ctx, W, H);
+  for (const w of walls) {
+    const a = ring[w.i];
+    const b = ring[w.j];
+    const mid = sideFill(a.x, a.y, b.x, b.y);
+    const g = ctx.createLinearGradient(
+      (top[w.i].sx + top[w.j].sx) / 2,
+      (top[w.i].sy + top[w.j].sy) / 2,
+      (bot[w.i].sx + bot[w.j].sx) / 2,
+      (bot[w.i].sy + bot[w.j].sy) / 2
+    );
+    g.addColorStop(0, "#d8c08a");
+    g.addColorStop(0.22, mid);
+    g.addColorStop(1, "#6a4e22");
+    ctx.beginPath();
+    ctx.moveTo(top[w.i].sx, top[w.i].sy);
+    ctx.lineTo(top[w.j].sx, top[w.j].sy);
+    ctx.lineTo(bot[w.j].sx, bot[w.j].sy);
+    ctx.lineTo(bot[w.i].sx, bot[w.i].sy);
+    ctx.closePath();
+    ctx.fillStyle = g;
+    ctx.fill();
+  }
+
+  ctx.beginPath();
+  ctx.moveTo(top[0].sx, top[0].sy);
+  for (let i = 1; i < n; i++) ctx.lineTo(top[i].sx, top[i].sy);
+  ctx.closePath();
+  ctx.fillStyle = "#ead9b6";
+  ctx.fill();
+  ctx.strokeStyle = "rgba(255, 248, 230, 0.45)";
+  ctx.lineWidth = 1.4;
+  ctx.stroke();
+
   ctx.save();
   ctx.clip();
-  paintFormica(ctx, 0, t.farY, W, t.nearY - t.farY + 8);
-  ctx.strokeStyle = "rgba(90, 74, 48, 0.16)";
-  ctx.lineWidth = 1;
-  for (let i = 1; i < 10; i++) {
-    const u = i / 10;
-    const x1 = t.nearL + (t.nearR - t.nearL) * u;
-    const x2 = t.farL + (t.farR - t.farL) * u;
-    ctx.beginPath();
-    ctx.moveTo(x1, t.nearY);
-    ctx.lineTo(x2, t.farY);
-    ctx.stroke();
-  }
+  const xs = top.map((p) => p.sx);
+  const ys = top.map((p) => p.sy);
+  const left = Math.min(...xs);
+  const right = Math.max(...xs);
+  const topY = Math.min(...ys);
+  const botY = Math.max(...ys);
+  paintFormica(ctx, left, topY, right - left, botY - topY);
   ctx.restore();
 }
 
@@ -471,16 +574,16 @@ export function drawKickAim(ctx, W, H, pointer, origin) {
   ctx.restore();
 }
 
-export function drawIdleKickBall(ctx, W, H) {
-  const x = W / 2;
-  const y = H - 124;
+export function drawIdleKickBall(ctx, W, H, distance) {
+  const p = projectKick(W, H, distance, 0, 12, 10);
+  const s = 16 * p.persp + 5;
   ctx.fillStyle = "rgba(30, 24, 16, 0.16)";
   ctx.beginPath();
-  ctx.ellipse(x + 1, y + 18, 14, 4, 0, 0, Math.PI * 2);
+  ctx.ellipse(p.sx + 1, p.groundY + 6, s * 0.7, s * 0.22, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.save();
-  ctx.translate(x, y);
-  paintKickFootball(ctx, 18);
+  ctx.translate(p.sx, p.sy);
+  paintKickFootball(ctx, s);
   ctx.restore();
-  return { x, y };
+  return { x: p.sx, y: p.sy };
 }
