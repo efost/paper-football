@@ -1,4 +1,4 @@
-import { Game } from "./game.js";
+import { Game } from "./game.js?v=fx1";
 
 const canvas = document.getElementById("game");
 const hint = document.getElementById("hint");
@@ -7,9 +7,12 @@ const fgBtn = document.getElementById("fg-btn");
 const scoreboard = document.getElementById("scoreboard");
 const homeName = document.getElementById("home-name");
 const awayName = document.getElementById("away-name");
+const homeSide = document.getElementById("home-side");
+const awaySide = document.getElementById("away-side");
 const homeScore = document.getElementById("home-score");
 const awayScore = document.getElementById("away-score");
 const clockEl = document.getElementById("clock");
+const metaLabel = document.getElementById("meta-label");
 const periodEl = document.getElementById("period");
 const menuOverlay = document.getElementById("menu-overlay");
 const coinOverlay = document.getElementById("coin-overlay");
@@ -55,8 +58,18 @@ const ui = {
     awayName.textContent = names.away;
     homeScore.textContent = String(game.scores[0]);
     awayScore.textContent = String(game.scores[1]);
-    clockEl.textContent = game.length === "timed" ? formatClock(game.clock) : "21 PTS";
+    if (game.length === "timed") {
+      metaLabel.textContent = "Clock";
+      clockEl.textContent = formatClock(game.clock);
+    } else {
+      metaLabel.textContent = "First to";
+      clockEl.textContent = game.length === "21" ? "21" : String(game.length);
+    }
     periodEl.textContent = game.downLabel();
+    homeSide.classList.toggle("has-ball", game.possession === 0);
+    awaySide.classList.toggle("has-ball", game.possession === 1);
+    menuBtn.hidden = game.phase === "menu";
+    scoreboard.hidden = game.phase === "menu";
 
     const humanAim = game.phase === "aim" && game.isHumanTurn();
     const humanKick = game.phase === "kickaim" && game.isHumanTurn();
@@ -64,9 +77,9 @@ const ui = {
 
     const toward = game.possession === 0 ? "toward the right edge" : "toward the left edge";
     if (game.phase === "menu") hint.textContent = "";
-    else if (humanAim) hint.textContent = `Drag ${toward} to flick. Hang it over the far end for a touchdown.`;
-    else if (humanKick) hint.textContent = "Pull farther for power. A steeper angle for loft. Left or right to aim. Over the bar and between the posts is good."
-    else if (game.phase === "slide") hint.textContent = "Let it ride.";
+    else if (humanAim) hint.textContent = `Pull back from the ball to flick ${toward}. Hang it over the far end for a touchdown.`;
+    else if (humanKick) hint.textContent = "Pull back from the ball for power. A steeper pull for loft. Left or right to aim. Over the bar and between the posts is good.";
+    else if (game.phase === "slide") hint.textContent = "";
     else if (!game.isHumanTurn()) hint.textContent = "CPU is lining it up…";
     else hint.textContent = "";
   },

@@ -16,12 +16,14 @@ import { chooseFieldAction, performFlick, planKick } from "./ai.js";
 import { TableAudio } from "./audio.js";
 import {
   drawTable,
+  drawPlayDirection,
+  drawFlickFx,
   drawFootball,
   drawAim,
   drawKickScene,
   drawKickAim,
   drawIdleKickBall,
-} from "./render.js";
+} from "./render.js?v=fx1";
 
 const ANNOUNCE_MS = 1100;
 
@@ -32,11 +34,13 @@ export class Game {
     this.ui = ui;
     this.audio = new TableAudio();
     this.pointer = null;
+    this.chargeStart = null;
     this.charging = false;
     this.kickOrigin = { x: 550, y: 500 };
     this.announceUntil = 0;
     this.aiWait = 0;
     this.slideHum = 0;
+    this.fx = { trails: [], burst: null };
     this.resetMenu();
   }
 
@@ -152,6 +156,7 @@ export class Game {
     if (!this.isHumanTurn()) return;
     const p = this.pointerFromEvent(e);
     this.pointer = p;
+    this.chargeStart = p;
     if (this.phase === "aim" || this.phase === "kickaim") {
       this.charging = true;
     }
@@ -164,23 +169,43 @@ export class Game {
   onPointerUp() {
     if (!this.charging) {
       this.pointer = null;
+      this.chargeStart = null;
       return;
     }
     if (this.phase === "aim") this.releaseFlick();
     else if (this.phase === "kickaim") this.releaseKick();
     this.charging = false;
     this.pointer = null;
+    this.chargeStart = null;
+  }
+
+  draggedCharge() {
+    if (!this.pointer || !this.chargeStart) return false;
+    return Math.hypot(this.pointer.x - this.chargeStart.x, this.pointer.y - this.chargeStart.y) >= 16;
   }
 
   releaseFlick() {
-    if (!this.pointer) return;
+    if (!this.pointer || !this.draggedCharge()) return;
     const dx = this.pointer.x - this.ball.x;
     const dy = this.pointer.y - this.ball.y;
     const len = Math.hypot(dx, dy);
     if (len < 8) return;
     const power = clamp(len / 180, 0, 1);
-    const offset = clamp(dy / 140, -1, 1) * (this.attackSide() === "right" ? 1 : -1);
-    applyFlick(this.ball, dx, dy, power, offset * 0.35);
+    const offset = clamp(-dy / 140, -1, 1) * (this.attackSide() === "right" ? 1 : -1);
+    applyFlick(this.ball, -dx, -dy, power, offset * 0.35);
+    this.beginSlide(power);
+  }
+
+  beginSlide(power) {
+    this.fx.burst = {
+      x: this.ball.x,
+      y: this.ball.y,
+      vx: this.ball.vx,
+      vy: this.ball.vy,
+      power,
+      age: 0,
+    };
+    this.fx.trails = [];
     this.audio.flick(power);
     this.phase = "slide";
     this.ui.setFg(false);
@@ -193,13 +218,14 @@ export class Game {
     this.phase = "kickaim";
     this.charging = false;
     this.pointer = null;
+    this.chargeStart = null;
     this.ui.setFg(false);
     this.maybeQueueAi();
     this.ui.sync(this);
   }
 
   releaseKick() {
-    if (!this.pointer) return;
+    if (!this.pointer || !this.draggedCharge()) return;
     const o = this.kickOrigin;
     const dx = this.pointer.x - o.x;
     const dy = this.pointer.y - o.y;
@@ -357,6 +383,8 @@ export class Game {
       if (this.aiWait <= 0) this.runAi();
     }
 
+    this.stepFlickFx(dt);
+
     if (this.phase === "slide") {
       const st = stepSlide(this.ball, dt);
       this.slideHum += dt;
@@ -387,9 +415,7 @@ export class Game {
         return;
       }
       const plan = performFlick(this.ball, this.attackSide(), this.down);
-      this.audio.flick(plan.power);
-      this.phase = "slide";
-      this.ui.setFg(false);
+      this.beginSlide(plan.power);
       return;
     }
     if (this.phase === "kickaim") {
@@ -418,14 +444,25 @@ export class Game {
     }
 
     drawTable(ctx, W, H);
+    drawPlayDirection(ctx, this.attackSide());
+    drawFlickFx(ctx, this.fx, this.ball);
     drawFootball(ctx, this.ball);
     if (this.phase === "aim" && this.charging) drawAim(ctx, this.ball, this.pointer, true);
+  }
 
-    ctx.fillStyle = "#e4c04a";
-    ctx.font = "700 14px 'Barlow Condensed', sans-serif";
-    ctx.fillText(this.possession === 0 ? "◀  HOME EDGE" : "", 24, H - 18);
-    ctx.textAlign = "right";
-    ctx.fillText(this.possession === 1 ? "GUEST EDGE  ▶" : "", W - 24, H - 18);
-    ctx.textAlign = "left";
+  stepFlickFx(dt) {
+    if (this.fx.burst) {
+      this.fx.burst.age += dt;
+      if (this.fx.burst.age > 0.28) this.fx.burst = null;
+    }
+    if (this.phase === "slide") {
+      const speed = Math.hypot(this.ball.vx, this.ball.vy);
+      if (speed > 80) {
+        this.fx.trails.push({ x: this.ball.x, y: this.ball.y, rot: this.ball.rot, life: 1 });
+        if (this.fx.trails.length > 8) this.fx.trails.shift();
+      }
+    }
+    for (const ghost of this.fx.trails) ghost.life -= dt * 5;
+    this.fx.trails = this.fx.trails.filter((ghost) => ghost.life > 0);
   }
 }

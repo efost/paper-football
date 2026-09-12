@@ -1,5 +1,5 @@
 /** Table length in world units. A cafeteria table is ~5–6 ft; the triangle is ~1.75 in. */
-export const TABLE = { x: 70, y: 90, w: 960, h: 400 };
+export const TABLE = { x: 70, y: 90, w: 960, h: 400, r: 28 };
 
 /** Leg length of the folded 45-45-90 football, in world units. */
 const LEG = 34;
@@ -50,12 +50,17 @@ export function worldVerts(ball) {
 }
 
 export function pointInTable(x, y, inset = 0) {
-  return (
-    x >= TABLE.x + inset &&
-    x <= TABLE.x + TABLE.w - inset &&
-    y >= TABLE.y + inset &&
-    y <= TABLE.y + TABLE.h - inset
-  );
+  const left = TABLE.x + inset;
+  const top = TABLE.y + inset;
+  const right = TABLE.x + TABLE.w - inset;
+  const bot = TABLE.y + TABLE.h - inset;
+  if (x < left || x > right || y < top || y > bot) return false;
+  const rad = Math.max(0, TABLE.r - inset);
+  if (rad <= 0) return true;
+  const cx = x < left + rad ? left + rad : x > right - rad ? right - rad : x;
+  const cy = y < top + rad ? top + rad : y > bot - rad ? bot - rad : y;
+  if (cx === x || cy === y) return true;
+  return (x - cx) ** 2 + (y - cy) ** 2 <= rad * rad;
 }
 
 export function overhangsEnd(verts, side) {
@@ -191,12 +196,12 @@ export function fallenOffTable(ball) {
   return ball.falling && ball.z > 160;
 }
 
-/** Drag length = power. Drag direction = loft (up) and aim (left/right). */
+/** Pull back from the ball. Length = power; opposite direction = loft and aim. */
 export function readKickDrag(dx, dy) {
   const dist = Math.hypot(dx, dy);
   const power = clamp(dist / 210, 0.12, 1);
-  const loft = dist < 8 ? 0.35 : clamp(-dy / dist, 0, 1);
-  const aimX = dist < 8 ? 0 : clamp(dx / dist, -1, 1);
+  const loft = dist < 8 ? 0.35 : clamp(dy / dist, 0, 1);
+  const aimX = dist < 8 ? 0 : clamp(-dx / dist, -1, 1);
   return { power, loft, aimX };
 }
 

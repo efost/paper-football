@@ -1,32 +1,39 @@
 import { TABLE, KICK, LOCAL_VERTS, worldVerts, readKickDrag } from "./physics.js";
 
-function laminate(ctx, x, y, w, h) {
-  const g = ctx.createLinearGradient(x, y, x, y + h);
-  g.addColorStop(0, "#d7bc86");
-  g.addColorStop(0.45, "#c9a86c");
-  g.addColorStop(1, "#b48d52");
-  ctx.fillStyle = g;
+function tablePath(ctx) {
+  ctx.beginPath();
+  ctx.roundRect(TABLE.x, TABLE.y, TABLE.w, TABLE.h, TABLE.r);
+}
+
+function paintFormica(ctx, x, y, w, h) {
+  const base = ctx.createLinearGradient(x, y, x, y + h);
+  base.addColorStop(0, "#f3ead4");
+  base.addColorStop(0.45, "#ead9b6");
+  base.addColorStop(1, "#e0cba6");
+  ctx.fillStyle = base;
   ctx.fillRect(x, y, w, h);
 
-  ctx.save();
-  ctx.fillStyle = "rgba(90, 68, 36, 0.16)";
-  for (let i = 0; i < 220; i++) {
-    const px = x + ((i * 47 + 13) % w);
-    const py = y + ((i * 31 + 9) % h);
-    ctx.fillRect(px, py, 2 + (i % 3), 1 + (i % 2));
+  for (let i = 0; i < 2600; i++) {
+    const px = x + ((i * 131 + 17) % w);
+    const py = y + ((i * 79 + 29) % h);
+    const tone = i % 5;
+    ctx.fillStyle =
+      tone === 0
+        ? "rgba(255, 252, 245, 0.42)"
+        : tone === 1
+          ? "rgba(150, 128, 92, 0.2)"
+          : tone === 2
+            ? "rgba(78, 64, 44, 0.1)"
+            : "rgba(214, 196, 158, 0.22)";
+    ctx.fillRect(px, py, tone === 2 ? 1.4 : 1, 1);
   }
-  ctx.globalAlpha = 0.08;
-  ctx.fillStyle = "#6a4e28";
-  for (let i = 0; i < 40; i++) {
-    ctx.fillRect(x + ((i * 97) % w), y + ((i * 53) % h), 22 + (i % 7), 1);
-  }
-  ctx.globalAlpha = 0.07;
-  ctx.beginPath();
-  ctx.ellipse(x + w * 0.72, y + h * 0.3, 36, 24, 0.4, 0, Math.PI * 2);
-  ctx.strokeStyle = "#7a5a32";
-  ctx.lineWidth = 6;
-  ctx.stroke();
-  ctx.restore();
+
+  const sheen = ctx.createLinearGradient(x, y, x + w, y + h);
+  sheen.addColorStop(0, "rgba(255, 255, 255, 0.2)");
+  sheen.addColorStop(0.38, "rgba(255, 255, 255, 0)");
+  sheen.addColorStop(1, "rgba(92, 72, 40, 0.05)");
+  ctx.fillStyle = sheen;
+  ctx.fillRect(x, y, w, h);
 }
 
 function yardMarks(ctx) {
@@ -51,28 +58,66 @@ function yardMarks(ctx) {
   ctx.restore();
 }
 
+function drawChevron(ctx, x, y, dir, size) {
+  ctx.beginPath();
+  ctx.moveTo(x - dir * size * 0.45, y - size * 0.5);
+  ctx.lineTo(x + dir * size * 0.55, y);
+  ctx.lineTo(x - dir * size * 0.45, y + size * 0.5);
+  ctx.stroke();
+}
+
+export function drawPlayDirection(ctx, attackSide) {
+  const towardRight = attackSide === "right";
+  const dir = towardRight ? 1 : -1;
+  const endX = towardRight ? TABLE.x + TABLE.w : TABLE.x;
+  const bandW = 70;
+
+  ctx.save();
+  tablePath(ctx);
+  ctx.clip();
+  const band = ctx.createLinearGradient(
+    towardRight ? endX - bandW : endX + bandW,
+    0,
+    endX,
+    0
+  );
+  band.addColorStop(0, "rgba(228, 192, 74, 0)");
+  band.addColorStop(1, "rgba(212, 168, 48, 0.32)");
+  ctx.fillStyle = band;
+  ctx.fillRect(towardRight ? endX - bandW : endX, TABLE.y, bandW, TABLE.h);
+  ctx.restore();
+
+  const cy = TABLE.y + TABLE.h + 26;
+  const cx = TABLE.x + TABLE.w / 2;
+  ctx.save();
+  ctx.strokeStyle = "#e4c04a";
+  ctx.lineWidth = 3.2;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  for (let i = -1; i <= 1; i++) {
+    drawChevron(ctx, cx + i * 26 * dir, cy, dir, 13);
+  }
+  ctx.restore();
+}
+
 export function drawTable(ctx, W, H) {
-  ctx.fillStyle = "#07140c";
-  ctx.fillRect(0, 0, W, H);
+  ctx.clearRect(0, 0, W, H);
 
-  ctx.fillStyle = "#3a2a1c";
-  ctx.fillRect(TABLE.x - 20, TABLE.y - 16, TABLE.w + 40, TABLE.h + 32);
-  ctx.fillStyle = "#241810";
-  ctx.fillRect(TABLE.x - 20, TABLE.y + TABLE.h + 8, TABLE.w + 40, 8);
+  ctx.save();
+  ctx.shadowColor = "rgba(0, 0, 0, 0.28)";
+  ctx.shadowBlur = 22;
+  ctx.shadowOffsetY = 10;
+  tablePath(ctx);
+  ctx.fillStyle = "#ead9b6";
+  ctx.fill();
+  ctx.restore();
 
-  laminate(ctx, TABLE.x, TABLE.y, TABLE.w, TABLE.h);
-
+  ctx.save();
+  tablePath(ctx);
+  ctx.clip();
+  paintFormica(ctx, TABLE.x, TABLE.y, TABLE.w, TABLE.h);
   yardMarks(ctx);
-
-  ctx.strokeStyle = "rgba(20, 16, 12, 0.35)";
-  ctx.lineWidth = 2;
-  ctx.strokeRect(TABLE.x + 1, TABLE.y + 1, TABLE.w - 2, TABLE.h - 2);
-
-  const light = ctx.createRadialGradient(W * 0.5, 40, 40, W * 0.5, H * 0.4, 520);
-  light.addColorStop(0, "rgba(255, 244, 214, 0.16)");
-  light.addColorStop(1, "rgba(0, 0, 0, 0.22)");
-  ctx.fillStyle = light;
-  ctx.fillRect(0, 0, W, H);
+  ctx.restore();
 }
 
 function localTrianglePath(ctx) {
@@ -80,6 +125,64 @@ function localTrianglePath(ctx) {
   ctx.lineTo(LOCAL_VERTS[1].x, LOCAL_VERTS[1].y);
   ctx.lineTo(LOCAL_VERTS[2].x, LOCAL_VERTS[2].y);
   ctx.closePath();
+}
+
+export function drawFlickFx(ctx, fx, ball) {
+  if (fx.burst && fx.burst.age < 0.26) {
+    const t = fx.burst.age / 0.26;
+    const fade = (1 - t) * (0.28 + fx.burst.power * 0.35);
+    const ang = Math.atan2(fx.burst.vy, fx.burst.vx);
+    ctx.save();
+    ctx.translate(fx.burst.x, fx.burst.y);
+    ctx.strokeStyle = `rgba(42, 36, 28, ${fade})`;
+    ctx.lineCap = "round";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(0, 0, 6 + t * 20, 0, Math.PI * 2);
+    ctx.stroke();
+    for (let i = -2; i <= 2; i++) {
+      const a = ang + i * 0.2;
+      const inner = 5 + t * 6;
+      const outer = 16 + t * 18 + Math.abs(i) * 3;
+      ctx.lineWidth = 2.4 - Math.abs(i) * 0.35;
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(a) * inner, Math.sin(a) * inner);
+      ctx.lineTo(Math.cos(a) * outer, Math.sin(a) * outer);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  for (const ghost of fx.trails) {
+    if (ghost.life <= 0) continue;
+    ctx.save();
+    ctx.translate(ghost.x, ghost.y);
+    ctx.rotate(ghost.rot);
+    ctx.globalAlpha = ghost.life * 0.22;
+    ctx.beginPath();
+    localTrianglePath(ctx);
+    ctx.fillStyle = "#f4efe4";
+    ctx.fill();
+    ctx.restore();
+  }
+
+  const speed = Math.hypot(ball.vx, ball.vy);
+  if (speed < 90) return;
+  const ang = Math.atan2(ball.vy, ball.vx);
+  const back = 14 + Math.min(48, speed * 0.035);
+  ctx.save();
+  ctx.strokeStyle = `rgba(42, 36, 28, ${Math.min(0.32, (speed - 90) / 1400)})`;
+  ctx.lineCap = "round";
+  ctx.lineWidth = 1.7;
+  for (let i = -1; i <= 1; i++) {
+    const ox = -Math.sin(ang) * i * 5;
+    const oy = Math.cos(ang) * i * 5;
+    ctx.beginPath();
+    ctx.moveTo(ball.x - Math.cos(ang) * 10 + ox, ball.y - Math.sin(ang) * 10 + oy);
+    ctx.lineTo(ball.x - Math.cos(ang) * back + ox, ball.y - Math.sin(ang) * back + oy);
+    ctx.stroke();
+  }
+  ctx.restore();
 }
 
 export function drawFootball(ctx, ball) {
@@ -176,37 +279,35 @@ function kickTablePath(ctx, W, H) {
   const farY = 150;
   const farL = W * 0.36;
   const farR = W * 0.64;
+  const nr = 26;
+  const fr = 10;
   ctx.beginPath();
-  ctx.moveTo(nearL, nearY);
-  ctx.lineTo(nearR, nearY);
-  ctx.lineTo(farR, farY);
-  ctx.lineTo(farL, farY);
+  ctx.moveTo(nearL + nr, nearY);
+  ctx.arcTo(nearR, nearY, farR, farY, nr);
+  ctx.arcTo(farR, farY, farL, farY, fr);
+  ctx.arcTo(farL, farY, nearL, nearY, fr);
+  ctx.arcTo(nearL, nearY, nearR, nearY, nr);
   ctx.closePath();
   return { nearL, nearR, nearY, farY, farL, farR };
 }
 
 function drawKickTable(ctx, W, H) {
-  ctx.fillStyle = "#07140c";
-  ctx.fillRect(0, 0, W, H);
+  ctx.clearRect(0, 0, W, H);
 
-  const t = kickTablePath(ctx, W, H);
-  ctx.fillStyle = "#2b2118";
   ctx.save();
-  ctx.translate(0, 7);
+  ctx.shadowColor = "rgba(0, 0, 0, 0.28)";
+  ctx.shadowBlur = 22;
+  ctx.shadowOffsetY = 10;
+  const t = kickTablePath(ctx, W, H);
+  ctx.fillStyle = "#ead9b6";
   ctx.fill();
   ctx.restore();
 
   kickTablePath(ctx, W, H);
-  const g = ctx.createLinearGradient(0, t.farY, 0, t.nearY);
-  g.addColorStop(0, "#b08950");
-  g.addColorStop(0.55, "#c4a36a");
-  g.addColorStop(1, "#d2b27a");
-  ctx.fillStyle = g;
-  ctx.fill();
-
   ctx.save();
   ctx.clip();
-  ctx.strokeStyle = "rgba(42, 36, 28, 0.22)";
+  paintFormica(ctx, 0, t.farY, W, t.nearY - t.farY + 8);
+  ctx.strokeStyle = "rgba(90, 74, 48, 0.16)";
   ctx.lineWidth = 1;
   for (let i = 1; i < 10; i++) {
     const u = i / 10;
@@ -218,17 +319,6 @@ function drawKickTable(ctx, W, H) {
     ctx.stroke();
   }
   ctx.restore();
-
-  kickTablePath(ctx, W, H);
-  ctx.strokeStyle = "#2b2118";
-  ctx.lineWidth = 3;
-  ctx.stroke();
-
-  const light = ctx.createRadialGradient(W * 0.5, 30, 20, W * 0.5, H * 0.45, 520);
-  light.addColorStop(0, "rgba(255, 244, 214, 0.14)");
-  light.addColorStop(1, "rgba(0, 0, 0, 0.28)");
-  ctx.fillStyle = light;
-  ctx.fillRect(0, 0, W, H);
 }
 
 function drawFinger(ctx, x0, y0, x1, y1, width, fill, stroke) {
@@ -364,9 +454,9 @@ export function drawKickAim(ctx, W, H, pointer, origin) {
   const dx = pointer.x - origin.x;
   const dy = pointer.y - origin.y;
   ctx.save();
-  ctx.strokeStyle = "rgba(243, 234, 215, 0.55)";
-  ctx.lineWidth = 1;
-  ctx.setLineDash([3, 4]);
+  ctx.strokeStyle = "rgba(28, 36, 48, 0.55)";
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([4, 4]);
   ctx.beginPath();
   ctx.moveTo(origin.x, origin.y);
   ctx.lineTo(pointer.x, pointer.y);
