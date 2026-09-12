@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Paper Football</title>
+    <meta name="description" content="A tabletop paper football game with cafeteria-table physics." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow+Condensed:wght@400;600;700&family=Share+Tech+Mono&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="css/styles.css?v=coin3" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect fill='%23c9a66b' width='32' height='32'/%3E%3Cpath fill='%23f4efe4' stroke='%231c2740' d='M16 5 L27 26 H5 Z'/%3E%3C/svg%3E"
+    />
+  </head>
+  <body>
+    <div id="app">
+      <header class="topbar">
+        <div class="brand">
+          <p class="brand-kicker">Cafeteria classic</p>
+          <h1>Paper Football</h1>
+        </div>
+        <div class="scoreboard" id="scoreboard" hidden>
+          <div class="score-side home">
+            <span class="score-role">Home</span>
+            <span class="score-name" id="home-name">You</span>
+            <span class="score-num" id="home-score">0</span>
+          </div>
+          <div class="score-meta">
+            <span class="meta-label">Clock</span>
+            <span id="clock">5:00</span>
+            <span id="period">1st down</span>
+          </div>
+          <div class="score-side away">
+            <span class="score-role">Guest</span>
+            <span class="score-name" id="away-name">CPU</span>
+            <span class="score-num" id="away-score">0</span>
+          </div>
+        </div>
+        <div class="top-actions">
+          <button type="button" class="text-btn" id="rules-btn">Rules</button>
+          <button type="button" class="text-btn" id="sound-btn" aria-pressed="true">Sound on</button>
+          <button type="button" class="text-btn" id="menu-btn" hidden>Menu</button>
+        </div>
+      </header>
+
+      <main class="stage-wrap">
+        <div id="stage">
+          <canvas id="game" width="1100" height="620"></canvas>
+          <p class="hint" id="hint"></p>
+          <div class="play-call" id="play-call" hidden></div>
+          <button type="button" class="fg-btn" id="fg-btn" hidden>Kick field goal (3)</button>
+        </div>
+      </main>
+    </div>
+
+    <div class="overlay" id="menu-overlay">
+      <div class="panel menu-panel">
+        <p class="eyebrow">Friday night · Formica table</p>
+        <h2>Paper Football</h2>
+        <p class="lede">
+          Flick the triangle down the table. Hang it on the far edge for a touchdown.
+          Kick through finger goalposts for the extra point.
+        </p>
+
+        <form id="setup-form">
+          <fieldset>
+            <legend>Opponent</legend>
+            <label><input type="radio" name="mode" value="cpu" checked /> Versus computer</label>
+            <label><input type="radio" name="mode" value="hotseat" /> Two players, one table</label>
+          </fieldset>
+          <fieldset>
+            <legend>Match</legend>
+            <label><input type="radio" name="length" value="21" checked /> First to 21</label>
+            <label><input type="radio" name="length" value="timed" /> 5-minute clock</label>
+          </fieldset>
+          <button type="submit" class="primary-btn">Coin toss</button>
+        </form>
+        <p class="menu-rules">
+          Need the table laws first?
+          <button type="button" class="text-btn ink" id="menu-rules-btn">Read the rules</button>
+        </p>
+      </div>
+    </div>
+
+    <div class="overlay" id="coin-overlay" hidden>
+      <div class="panel coin-panel">
+        <p class="eyebrow">Opening possession</p>
+        <h2>Call it in the air</h2>
+        <div class="coin" id="coin" aria-hidden="true">
+          <div class="coin-face heads">H</div>
+          <div class="coin-face tails">T</div>
+        </div>
+        <div class="coin-actions">
+          <button type="button" class="primary-btn" data-call="heads">Heads</button>
+          <button type="button" class="primary-btn" data-call="tails">Tails</button>
+        </div>
+        <p class="coin-result" id="coin-result"></p>
+      </div>
+    </div>
+
+    <div class="overlay" id="rules-overlay" hidden>
+      <div class="panel rules-panel">
+        <p class="eyebrow">How the table works</p>
+        <h2>Rules</h2>
+        <div class="rules-cols">
+          <section>
+            <h3>Field play</h3>
+            <ul>
+              <li>Each possession has four downs. Flick from where the ball lies.</li>
+              <li>A <strong>touchdown is 6</strong> when the ball comes to rest with any part hanging over the opponent’s end — and the center of mass still on the table.</li>
+              <li>If the ball falls off any edge, it is a turnover. The opponent starts on their own edge.</li>
+              <li>Turnover on downs: the opponent keeps the ball where it stopped and flicks the other way.</li>
+            </ul>
+          </section>
+          <section>
+            <h3>Kicking</h3>
+            <ul>
+              <li>After a touchdown, one extra-point kick from midfield is worth <strong>1</strong>.</li>
+              <li>On fourth down you may attempt a <strong>field goal worth 3</strong> from the current spot, or go for the touchdown.</li>
+              <li>Stand the triangle on a point and flick it through the finger posts. Over the thumbs and between the uprights is good — including a kick that sails a bit above the fingertips. A carom off an upright still counts if it continues through.</li>
+              <li>A miss or a ball that hits the table first is no good. After any score or missed kick, the other player starts from their edge.</li>
+            </ul>
+          </section>
+          <section>
+            <h3>Winning</h3>
+            <ul>
+              <li>First to 21, or most points when the five-minute clock expires.</li>
+              <li>A timed tie is broken by alternating field goals until someone leads after an equal number of kicks.</li>
+            </ul>
+          </section>
+        </div>
+        <button type="button" class="primary-btn" id="rules-close">Back to the table</button>
+      </div>
+    </div>
+
+    <div class="overlay" id="end-overlay" hidden>
+      <div class="panel end-panel">
+        <p class="eyebrow" id="end-eyebrow">Final</p>
+        <h2 id="end-title">You win</h2>
+        <p id="end-score"></p>
+        <button type="button" class="primary-btn" id="rematch-btn">Rematch</button>
+      </div>
+    </div>
+
+    <script type="module" src="js/main.js?v=coin3"></script>
+  </body>
+</html>
